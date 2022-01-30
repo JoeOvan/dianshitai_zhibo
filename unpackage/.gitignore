@@ -1,0 +1,19 @@
+# Mac
+.DS_Store
+**/.DS_Store
+
+# vim/vi
+*.swp
+
+# JavaScript
+node_modules/
+.node_modules/
+.eslintcache
+unpackage/dist/build/
+unpackage/dist/dev/
+unpackage/dist/dev/mp-weixin
+unpackage/dist/dev/.sourcemap
+unpackage/dist/dev/.automator
+
+# python
+*.pyc

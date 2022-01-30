@@ -1,0 +1,136 @@
+<template>
+	<view class="tabbar">
+		<view class="ul">
+			<view :class="['li',current == index?'cur' :'']" v-for="(item,index) in taBbarList" :key="index" @tap="navigatorTo(item.url)">
+				<view style="height: 53rpx;width: 65rpx;margin: 0 auto;">
+					<image  class="img" :src="current == index ? item.selectIcon : item.icon" mode="widthFix" style="width: 100%;"></image>
+				</view>
+				
+				<view class="p">{{item.name}}</view>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script>
+	export default {
+		props: {
+			current: {
+				type: Number,
+				default: 0
+			}
+		},
+		data() {
+			return {
+				taBbarList: [{
+						type: 0,
+						icon: '/static/live.png',
+						selectIcon: '/static/live-active.png',
+						name: '直播室',
+						url: '/pages/index/index'
+					},
+					{
+						type: 0,
+						icon: '/static/shop.png',
+						selectIcon: '/static/shop-active.png',
+						name: '商城',
+						url: '/pages/shop/shop'
+					},
+					{
+						type: 0,
+						icon: '/static/show.png',
+						selectIcon: '/static/show-active.png',
+						name: '展示',
+						url: '/pages/show/show'
+					},
+					{
+						type: 0,
+						icon: '/static/user.png',
+						selectIcon: '/static/user-active.png',
+						name: '我的',
+						url: '/pages/user/user'
+					}
+				],
+				tabbarHeight: 0,
+			}
+		},
+		watch:{
+			current(e){
+				this.getTabbarHeight()
+			}
+		},
+		methods: {
+			navigatorTo(e) {
+				this.getTabbarHeight()
+				uni.switchTab({
+					url: e,
+				});
+			},
+			//动态获取高度
+			getTabbarHeight() {
+				const query = uni.createSelectorQuery().in(this);
+				query.select('.tabbar').boundingClientRect(data => {
+					
+					this.tabbarHeight = data.height;
+					
+					uni.setStorageSync('tabbarHeight', this.tabbarHeight);
+					
+				}).exec();
+			
+			},
+		}
+	}
+</script>
+
+<style lang="scss">
+	.tabbar{
+		height: 115rpx;
+		position: fixed;
+		border-top: 1px solid white;
+		left: 0;
+		bottom: 0;
+		right: 0;
+		z-index: 20;
+		background: #ffffff;
+		.ul{
+			text-align: center;
+			display: flex;
+			background: #ffffff;
+			flex-direction: row;
+			.df,.li{
+				flex: 1;
+				padding-top: 18rpx;
+				padding-bottom: 12rpx;
+				position: relative;
+				.img{
+					height: 65rpx;
+					overflow: hidden;
+					margin: 0 auto;
+				}
+				.ic{
+					width: 50rpx;
+					height: 65rpx;
+					border-radius: 50%;
+					text-align: center;
+					font-size: 45upx;
+					line-height: 80upx;
+					font-weight: bold;
+					background-color: black;
+					color: white;
+				}
+				.p{
+					margin-top: 10rpx;
+					text-align: center;
+					font-size: 25upx;
+					line-height: 30upx;
+					color: #000000;
+				}
+				&.cur{
+					.p{
+						color: red;
+					}
+				}
+			}	
+		}
+	}
+</style>

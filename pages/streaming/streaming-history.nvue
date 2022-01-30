@@ -1,0 +1,634 @@
+<template>
+	<view class="wrapper">
+		<view class="nav-fixed isfixed">
+			<cu-custom bgColor="text-white" :isBack="true">
+				<block slot="backText"><text class="logo-tips">茂名电视台直播</text></block>
+			</cu-custom>
+		</view>
+		<view class="content" :style="{'top':tabFix}">
+			<view class="v-list">
+				<view class="v-list-content">
+					<view class="v-list-img">
+<!-- 						<view class="v-list-watch">
+							<view class="v-list-icon">
+								<image src="../../static/voice.png"></image>
+							</view>
+							<text>{{seeNum}}观看</text>
+						</view> -->
+						<view class="v-list-bg">
+							<swiper class="screen-swiper" :indicator-dots="indicatorDots" :circular="circular" :autoplay="autoplay" :interval="interval"
+								duration="500" style="height: 400rpx;" v-if="content.type==3">
+								<swiper-item v-for="(item,index) in swiper" :key="index">
+									<fr-image class="swiper" :src="baseUrl+item.url" mode="aspectFill" />
+								</swiper-item>
+							</swiper>
+						
+							<view @click="handleClicked" v-if="content.type==2 || content.type==1">
+								<video class="video" id="myVideo" ref="myVideo"  title="直播报道" style="width: 100%;"
+									:src="content.liveUrl" v-if="content.status==1"
+									:controls="false" :show-center-play-btn="true" :autoplay="true" :loop="true" :show-play-btn="false" 
+									:show-fullscreen-btn="true" @error="videoErrorCallback">
+								</video>
+								<video class="video" id="liveUrl" ref="liveUrl"  title="直播报道" style="width: 100%;"
+									:src="content.liveUrl" v-if="content.status>1"
+									:show-fullscreen-btn="true" :autoplay="true" @error="videoErrorCallback">
+								</video>
+							</view>
+							
+							 <!-- 中间播放按钮 -->
+							<view class="vd-cover" @click="handleClicked" v-if="content.status==1"> 
+								<image v-if="!isPlay" src="../../static/play.png" mode="aspectFill"  ></image>
+							</view>
+						</view>
+					</view>
+					<view class="v-list-title">{{content.report.title}}</view>
+<!-- 					<view class="v-list-bottom-content">
+						<view class="v-list-bottom">
+							<view class="v-list-left"><image :src="baseUrl+content.anchor.headerImg"></image><text>{{content.anchor.name}}</text></view>
+							<view class="v-list-right" @click="setLike">
+								<image src="../../static/like.png" style="width: 28rpx;height: 24rpx;top: 30rpx;"></image>
+								<text style="margin-left: 40rpx;">{{likeNum}}喜欢</text>
+							</view>
+						</view>
+					</view> -->
+					
+					<view style="font-size: 12px;padding: 15px;background-color: #FFFFFF;color: #666666">{{content.report.content}}</view>
+				</view>
+			</view>
+			
+			<!-- 跟踪报道、评论 -->
+			<view class="content-bottom">
+				<view class="tab">
+					<view class="tab-item" :class="{'tab-item-active':tabIndex==1}" @click="tabBtn" :data-idx="1">
+						跟踪报道({{content.report.childrenListNum}})
+					</view>
+					<view class="tab-item" :class="{'tab-item-active':tabIndex==2}" @click="tabBtn" :data-idx="2">
+						评论({{content.report.commentListNum}})
+					</view>
+				</view>
+				
+				<view class="list" v-if="tabIndex==1">
+					<block  v-for="(item,index) in content.report.childrenList" :key="index">
+						<view class="comment-top">
+							<view class="comment-top-item">
+								<fr-image class="avatar" :src="baseUrl+content.anchor.headerImg" mode="aspectFill" />
+								<text style="padding:6px 0 0 33px ;">{{content.anchor.name}}</text>
+								<text style="padding-left: 33px;" class="comment-top-from">来自 <text>茂名电视台</text></text>
+							</view>
+							<view class="comment-top-item right">{{item.liveTime}}</view>
+						</view>
+						<view class="comment-content">
+							<text>{{item.content}}</text>
+							<view class="image-layout-wrap">
+								
+								<view class="image-wrap image-layout-one" v-if="item.imgList.length == 1">
+									
+									<block v-for="(item1,index1) in item.imgList"  :key="index1">
+										<image class="swiper" :src="baseUrl+item1.url" mode="aspectFill" style="height: 422rpx;" @click="getImgIndex(index1,item.imgList)"></image>
+										
+									</block>
+								</view>
+								
+								<view class="image-wrap image-layout-four" v-else-if="item.imgList.length >= 2">
+									
+									<block v-for="(item1,index1) in item.imgList"  :key="index1">
+										<view class="cover-wrap">
+											<image class="swiper" :src="baseUrl+item1.url" mode="aspectFill" @click="getImgIndex(index1,item.imgList)"></image>
+										</view>
+										
+									</block>
+								</view>
+								
+							</view>
+							<view @click="handleClicked" v-if="item.type==2 || item.type==1">
+								<video class="video" :id="'childrenVideo'+index" :ref="'childrenVideo'+index"  title="追踪直播" style="width: 100%;"
+									:src="baseUrl+item.videoUrl"  :show-fullscreen-btn="true" @error="videoErrorCallback">
+								</video>
+							</view>
+						</view>
+					</block>
+				</view>
+				<view class="list" v-if="tabIndex==2">
+					<block  v-for="(item,index) in content.report.commentList" :key="index">
+						<view class="comment-top">
+							<view class="comment-top-item">
+								<fr-image class="avatar" :src="baseUrl+item.avatar" mode="aspectFill" />
+								<text style="padding:14px 0 0 33px ;" v-if="item.name!=null">{{item.name}}</text>
+								<text style="padding:14px 0 0 33px ;" v-if="item.name==null">龙眼用户</text>
+							</view>
+							<view class="comment-top-item right">
+								{{item.createTime}}
+							</view>
+						</view>
+						<view class="comment-content">
+							<text>{{item.message}}</text>
+						</view>
+					</block>
+					<view class="comment-sub">
+						<view class="comment-sub-content">
+							<view class="comment-sub-inp">
+								<input type="text" v-model="msg" placeholder="请发表你的看法" placeholder-style="color:#888888" cursor-spacing="20" />
+							</view>
+							<view class="comment-sub-btn" @click="sendMsg">
+								<image src="../../static/Send.png" mode="aspectFill"></image>
+							</view>
+						</view>
+					</view>
+				</view>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script>
+	import FrImage from '@/components/fr-image/fr-image.vue'
+	let timer = null
+	export default {
+		components:{FrImage},
+		data() {
+			return {
+				list: [],
+				tabFix: this.CustomBar + 'px',
+				isTabFix: {
+					top: 'auto'
+				},
+				tabIndex:1,
+				isPlay: true,
+				//图片轮播
+				checkImg: false,
+				indicatorDots: false,
+				vertical: false,
+				autoplay: true,
+				circular: true,
+				interval: 5000,
+				duration: 500,
+				
+				//视频直播
+				vSrc:"https://develop.mmpanya.com/uploads/tmp/16315247227326.mp4",
+				current: 0,
+				vIndicatorDots: true,
+				vAutoplay: true,
+				vInterval: 2000,
+				vDuration: 500,
+				msg:"",
+				swiper:[
+					"../../static/video-img.jpg",
+					"../../static/video-img.jpg",
+					"../../static/video-img.jpg",
+					"../../static/video-img.jpg",
+				],
+				seeNum:0,
+				likeNum:0,
+				is_like:false,
+				id:0,
+				reportId:0,
+				content:{
+					status:0,
+					liveUrl:"",
+					introduce:"",
+					anchor:{
+						headerImg:"",
+						name:"",
+					},
+					report:{
+						commentList:[],
+						childrenList:[],
+						childrenListNum:0,
+						commentListNum:0,
+						title:"",
+						content:"",
+						replayVideoUrl:"",
+					},
+					liveImgUrl:"",
+					type:2
+				},
+				baseUrl: uni.$url.baseUrl,
+			}
+		},
+		onLoad(option) {
+			this.id=option.id;
+			// this.likeNum=option.likeNum;
+			// this.seeNum=option.seeNum;
+			
+			this.getData();
+		},
+		methods: {
+			//点赞
+			async setLike(){
+				if(this.is_like==true){
+					const [err, succ] = await uni.showModal({
+					  title: '提示',
+					  content: '确认取消点赞吗？'
+					}).catch(err => err)
+					
+					if (succ && succ.confirm) {
+						this.cancelLike();
+					}
+					return;
+				}
+				const res = await uni.$http.post(uni.$url.thumbTrue,{roomId:this.id});
+				
+				if (res.data.code !== 0) return uni.$showMsg(res.data.msg);
+				
+				this.likeNum++;
+				this.is_like=true;
+				
+				uni.showToast({
+					title: '点赞成功',
+					icon: 'success'
+				})
+			},
+			async cancelLike(){
+				const res = await uni.$http.post(uni.$url.thumbFalse,{roomId:this.id});
+				
+				if (res.data.code !== 0) return uni.$showMsg(res.data.msg);
+				
+				this.likeNum--;
+				this.is_like=false;
+			},
+			async getData(){
+				// 发起请求
+				const res = await uni.$http.get(uni.$url.getReportById,{reportId:this.id});
+							
+				if (res.data.code !== 0) return uni.$showMsg(res.data.msg);
+				
+				this.likeNum = res.data.data.likeNum;
+				this.seeNum = res.data.data.lookNum;
+				
+				this.content.introduce = res.data.data.introduce;
+				// this.content.anchor.headerImg = res.data.data.anchor.headerImg;
+				// this.content.anchor.name = res.data.data.anchor.name;
+				this.content.report.childrenList = res.data.data.childrenList;
+				this.content.report.childrenListNum = res.data.data.childrenList.length;
+				this.swiper = res.data.data.imgList;
+				this.content.report.title = res.data.data.title;
+				this.content.report.content = res.data.data.content;
+				
+				this.content.status = res.data.data.status;
+				if(this.content.status==1){
+					//正片
+					this.content.liveUrl = res.data.data.liveUrl;
+				}else if(this.content.status==2){
+					//回放
+					this.content.liveUrl = this.baseUrl+res.data.data.replayVideoUrl;
+				}else if(this.content.status==3){
+					//预热
+					this.content.liveUrl = this.baseUrl+res.data.data.preheatVideoUrl;
+				}
+				
+				this.content.liveImgUrl = res.data.data.liveImgUrl;
+				this.content.type = res.data.data.type;
+				this.content.report.commentList = res.data.data.commentList;
+				this.content.report.commentListNum = res.data.data.commentList.length;
+				this.reportId = res.data.data.reportId;
+				this.is_like = res.data.data.isLike;
+			},
+			videoErrorCallback(e) {
+				console.log(e);
+			},
+			tabBtn(e) {
+				this.tabIndex = e.currentTarget.dataset.idx;
+			},
+			async sendMsg(){
+				
+				if(!this.msg || this.msg == '') return uni.$showMsg('评论不能为空');
+				
+				// 发起请求
+				const res = await uni.$http.post(uni.$url.saveComment,{reportId:this.reportId,message:this.msg});
+							
+				if (res.data.code !== 0) return uni.$showMsg(res.data.msg);
+				
+				this.msg = '';
+				
+				uni.showToast({
+					title: '提交审核成功',
+					duration: 2000,
+					icon: 'success'
+				})
+			},
+			// 播放
+			play(id) {
+				if(id =="myVideo"){
+					this.video=uni.createVideoContext(id, this);
+					this.video.play()
+					this.isPlay = true
+				}
+			},
+			// 暂停
+			pause(id) {
+				if(id =="myVideo"){
+					this.video=uni.createVideoContext(id, this);
+					this.video.pause()
+					this.isPlay = false
+				}
+			},
+			// 点击视频事件
+			handleClicked(e) {
+				let id = e.target.id;
+				if(id == ""){
+					id = "myVideo";
+				}
+				if(timer){
+					clearTimeout(timer)
+				}
+				this.clickNum++
+				timer = setTimeout(() => {
+					if(this.clickNum >= 2){
+					}else{
+						if(this.isPlay){
+							this.pause(id)
+						}else{
+							this.play(id)
+						}
+					}
+					this.clickNum = 0
+				}, 300)
+			},
+			getImgIndex(index,photos){
+				console.log(index,photos);
+				//准备一个装图片路径的  数组imgs
+				let imgs = photos.map( item =>{
+				//只返回图片路径
+					return this.baseUrl + item.url  
+				})
+				// console.log(imgs);
+				//调用预览图片的方法
+				uni.previewImage({
+					urls:imgs,
+					current:index
+				})
+			}
+		}
+	}
+</script>
+
+<style lang="scss">
+	
+	.nav-fixed {
+		position: fixed;
+		width: 100%;
+		z-index: 1000;
+	}
+	video{
+		height: 422rpx;
+	}
+	.isfixed {
+		background: #FF2222;
+	}
+	.vd-cover{
+		display: flex;
+		position: absolute;
+		top: 130rpx;
+		left: 305rpx;
+		text-align: center;
+		height: 140rpx;
+		width: 140rpx;
+		image{
+			height: 140rpx;
+			width: 140rpx;
+		}
+	}
+	.comment-sub{
+		width: 100%;
+		position: fixed;
+		bottom: 0;
+		border-top:1px #CCCCCC solid;
+		padding: 20rpx 30rpx;
+		background-color: #fff;
+		image{
+			width: 68rpx;
+			height: 48rpx;
+		}
+		.comment-sub-content{
+			border: 1px #FF2222 solid;
+			border-radius: 40rpx;
+			height: 80rpx;
+			line-height: 80rpx;
+			width: 100%;
+			justify-content:space-between;
+			flex-direction:unset;
+			background-color: #F4F4F4;
+			.comment-sub-inp{
+				margin-left:21rpx;
+				width: 480rpx;
+				input{
+					margin-top: 16rpx;
+				}
+			}
+			.comment-sub-btn{
+				background: #FF2222;
+				border-radius: 40rpx;
+				width: 120rpx;
+				padding-top: 14rpx;
+				image{
+					margin: 0 auto;
+				}
+			}
+		}
+	}
+	.content-bottom{
+		background: #ffffff;
+		.tab {
+			box-sizing: border-box;
+			color: #000;
+			display: flex;
+			flex-direction: row;
+			text-align: center;
+			color: #666666;
+			.tab-item {
+				font-size: 28rpx;
+				padding: 20rpx 38rpx;
+				width: 50%;
+				background: #EEEEEE;
+			}
+			.tab-item-active {
+				color: #000000;
+				background: #ffffff;
+			}
+		}
+		.list{
+			margin-bottom: 120rpx;
+			.comment-top{
+				padding: 0 20px;
+				height: 44px;
+				display: flex;
+				flex-direction: row;
+				text-align: left;
+				.comment-top-item {
+					width: 50%;
+					.avatar {
+						position:absolute;
+						top:10px;
+						width: 48rpx;
+						height: 48rpx;
+					}
+					image{
+						width: 100%;
+						height: 100%;
+						border-radius: 50%;
+					}
+					text{
+						
+					}
+					.comment-top-from{
+						font-size: 9px;
+						color: #888888;
+						text{
+							color: #000000;
+							margin-left: 5px;
+						}
+					}
+				}
+				.right{
+					text-align: right;
+					color: #888888;
+					font-size: 12px;
+					padding-top: 17px;
+				}
+			}
+			.comment-content{
+				margin: 5px 28px 10px 53px;
+				padding-bottom: 10px;
+				border-bottom:1px #DDDDDD solid;
+				color: #000000;
+				text{
+					margin-bottom: 10px;
+				}
+				.image-layout-wrap {
+					// display: inline-block;;
+					// overflow:hidden;
+					.image-wrap {
+						
+					}
+					.image-layout-one {
+						
+					}
+					.image-layout-two {
+						
+					}
+					.image-layout-three {
+						
+					}
+					.image-layout-four {
+						display: flex;
+						flex-wrap: wrap;
+						flex-direction: row;
+						width: calc(100% + 30rpx);
+						position: relative;
+						left: -15rpx;
+						.cover-wrap {
+							display: inline-block;
+							width: 46%;
+							height:0;
+							padding-top:45%;
+							margin: 2%;
+							overflow: hidden;
+							.swiper {
+								position: absolute;
+								left: 0;
+								top: 0;
+								display: inline-block;
+								width: 100%;
+								height: 100%;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	.v-list{
+		background-color: #f6f6f6;
+		.v-list-content{
+			width: 100%;
+			display: flex;
+			flex-direction:column;
+			-webkit-flex-direction:column;
+			margin-bottom: 10px;
+			.v-list-img{
+				height: 211px;
+				.v-list-watch{
+					z-index:2;
+					position: absolute;
+					top: 15px;
+					left: 15px;
+					height: 28px;
+					line-height: 28px;
+					padding: 0 15px 0 30px;
+					border-radius: 15px;
+					background: rgba($color: #000000, $alpha: 0.6);
+					color: #FFFFFF;
+					.v-list-icon{
+						position: absolute;
+						width: 25px;
+						height: 25px;
+						background: #FF1818;
+						border-radius: 50%;
+						text-align: center;
+						left: 0;
+						top: 2px;
+						image{
+							top: 8px;
+							left: 7px;
+							width: 10px;
+							height: 10px;
+						}
+					}
+				}
+				.v-list-bg{
+					z-index:1;
+					height: 211px;
+					width: 100%;
+					.swiper {
+						width: 100%;
+						height: 100%;
+					}
+					position: absolute;
+				}
+			}
+			.v-list-title{
+				font-size: 17px;
+				padding: 0 15px 0 15px;
+				background-color: #FFFFFF;
+				color: #000;
+			}
+			.v-list-bottom-content{
+				background: #FFFFFF;
+				.v-list-bottom{
+					height: 44px;
+					line-height: 44px;
+					margin: 0 10px;
+					border-bottom:1px #DDDDDD solid;
+					image{
+						width: 24px;
+						height: 24px;
+						position:absolute;
+						top:10px;
+					}
+					.v-list-left{
+						position: absolute;
+						left: 0;
+						width: 50%;
+						padding-left: 10px;
+						image{
+							border-radius: 50%;
+						}
+					}
+					.v-list-right{
+						padding: 0 10px 0 18%;
+						flex: 5;
+						position: absolute;
+						right: 0;
+						width: 50%;
+					}
+					text{
+						margin-left: 28px;
+					}
+				}
+			}
+			
+		}
+		
+	}
+</style>

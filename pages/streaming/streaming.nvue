@@ -1,0 +1,933 @@
+<template>
+	<view class="wrapper">
+		<view class="nav-fixed isfixed">
+			<cu-custom bgColor="text-white" :isBack="true">
+				<block slot="backText"><text class="logo-tips">茂名电视台直播</text></block>
+			</cu-custom>
+		</view>
+		<view class="content" :style="{'top':tabFix}">
+			<view class="v-list">
+				<view class="v-list-content">
+					<view class="v-list-img">
+						<view class="v-list-watch">
+							<view class="v-list-icon">
+								<image src="../../static/voice.png"></image>
+							</view>
+							<text>{{ seeNum }}看过</text>
+						</view>
+						<view class="v-list-time" v-if="content.report.isShowLiveTime == 1 && content.status ==3 && content.type == 1">直播时间&nbsp;&nbsp;{{ content.report.liveTime | dateFormat }}</view>
+						<view class="v-list-bg">
+							<swiper class="screen-swiper" :indicator-dots="indicatorDots" :circular="circular" :autoplay="autoplay" :interval="interval"
+								:duration="duration" style="height: 211px;" v-if="content.type==3">
+								<swiper-item v-for="(item,index) in swiper" :key="index">
+									<!-- <fr-image class="swiper" :src="baseUrl+item" mode="aspectFill" /> -->
+									<fr-image class="swiper" :src="baseUrl+item.url" mode="aspectFill" />
+								</swiper-item>
+							</swiper>
+							
+							<!-- 直播或者视频 -->
+							<view @click="handleClicked" v-if="content.type == 1 || content.type == 2">
+								<video class="video" id="myVideo" ref="myVideo"  title="直播报道" style="width: 100%;height: 211px;" :poster="content.liveImgUrl" :src="content.liveUrl" v-if="content.status==1" :controls="true" :show-center-play-btn="true" :autoplay="true" :loop="true" :show-play-btn="false" :show-fullscreen-btn="true" @error="videoErrorCallback">
+								</video>
+								<video class="video" id="liveUrl" ref="liveUrl"  title="直播报道" style="width: 100%;"
+									:poster="content.liveImgUrl"
+									:src="content.liveUrl" v-if="content.status>1"
+									:show-fullscreen-btn="true" :autoplay="true" @error="videoErrorCallback">
+								</video>
+							</view>
+							
+							
+							 <!-- 中间播放按钮 -->
+							<view class="vd-cover" @click="handleClicked" v-if="content.status==1"> 
+								<image v-if="!isPlay" src="../../static/play.png" mode="aspectFill"  ></image>
+							</view>
+						</view>
+					</view>
+					<view class="v-list-title">{{content.report.title}}</view>
+					<view class="v-list-bottom-content">
+						<view class="v-list-bottom">
+							<view class="v-list-left"><image :src="content.anchor.headerImg"></image><text>{{content.anchor.name}}</text></view>
+							<view class="v-list-right" @click="setLike">
+								<image src="../../static/like.png" style="width: 28rpx;height: 24rpx;top: 36rpx;"></image>
+								<text style="margin-left: 40rpx;">{{likeNum}}喜欢</text>
+							</view>
+						</view>
+					</view>
+					
+					<view style="font-size: 12px;padding: 15px;background-color: #FFFFFF;color: #666666">
+						<text>{{content.report.content}}</text>
+					</view>
+				</view>
+			</view>
+			
+			<!-- 跟踪报道、评论 -->
+			<view class="content-bottom">
+				<view class="tab">
+					<view class="tab-item" :class="{'tab-item-active':tabIndex==1}" @click="tabBtn" :data-idx="1">
+						跟踪报道({{content.report.childrenListNum}})
+					</view>
+					<view class="tab-item" :class="{'tab-item-active':tabIndex==2}" @click="tabBtn" :data-idx="2">
+						评论({{content.report.commentListNum}})
+					</view>
+				</view>
+				
+				<view class="list" v-if="tabIndex==1">
+					<block  v-for="(item,index) in content.report.childrenList" :key="index">
+						<view class="comment-top">
+							<view class="comment-top-item">
+								<fr-image class="avatar" :src="content.anchor.headerImg" mode="aspectFill" />
+								<text style="padding:6px 0 0 33px ;">{{content.anchor.name}}</text>
+								<text style="padding-left: 33px;" class="comment-top-from">来自 <text>茂名电视台</text></text>
+							</view>
+							<view class="comment-top-item right">{{item.publishTime}}</view>
+						</view>
+						<view class="comment-content">
+							<text>{{item.content}}</text>
+							<view class="image-layout-wrap">
+								
+								<view class="image-wrap image-layout-one" v-if="item.imgList.length == 1">
+									
+									<block v-for="(item1,index1) in item.imgList"  :key="index1">
+										<image class="swiper" :src="baseUrl+item1.url" mode="aspectFill" style="height: 422rpx;" @click="getImgIndex(index1,item.imgList)"></image>
+										
+									</block>
+								</view>
+								
+								<view class="image-wrap image-layout-four" v-else-if="item.imgList.length >= 2">
+									
+									<block v-for="(item1,index1) in item.imgList"  :key="index1">
+										<view class="cover-wrap">
+											<image class="swiper" :src="baseUrl+item1.url" mode="aspectFill" @click="getImgIndex(index1,item.imgList)"></image>
+										</view>
+										
+									</block>
+								</view>
+								
+							</view>
+							<view @click="handleClicked" v-if="item.type==2 || item.type==1">
+								<video class="video" :id="'childrenVideo'+index" :ref="'childrenVideo'+index"  title="追踪直播" style="width: 100%;"
+									:poster="item.videoImgUrl"
+									:src="baseUrl+item.videoUrl"  :show-fullscreen-btn="true" @error="videoErrorCallback">
+								</video>
+							</view>
+						</view>
+					</block>
+				</view>
+				<view class="list" v-if="tabIndex==2">
+					<block  v-for="(item,index) in content.report.commentList" :key="index">
+						<view class="comment-top">
+							<view class="comment-top-item">
+								<fr-image class="avatar" :src="item.avatar" mode="aspectFill" />
+								<text style="padding:14px 0 0 33px ;" v-if="item.name!=null">{{item.name}}</text>
+								<text style="padding:14px 0 0 33px ;" v-if="item.name==null">龙眼用户</text>
+							</view>
+							<view class="comment-top-item right">
+								{{item.createTime}}
+							</view>
+						</view>
+						<view class="comment-content">
+							<text>{{item.message}}</text>
+						</view>
+					</block>
+					<view class="comment-sub">
+						<view class="comment-sub-content">
+							<view class="comment-sub-inp">
+								<input type="text" v-model="msg" placeholder="请发表你的看法" placeholder-style="color:#888888" cursor-spacing="20" />
+							</view>
+							<view class="comment-sub-btn" @click="sendMsg">
+								<image src="../../static/Send.png" mode="aspectFill"></image>
+							</view>
+						</view>
+					</view>
+				</view>
+			</view>
+		</view>
+		
+		<login-modal :isShow='isLoginModalShow' @openModal="isLoginModalShow = true" @closeModal="isLoginModalShow = false"></login-modal>
+		
+	</view>
+</template>
+
+<script>
+	import FrImage from '@/components/fr-image/fr-image.vue'
+	import { mapState, mapMutations } from 'vuex'
+	let timer = null
+	export default {
+		computed: {
+			...mapState('m_user', ['userinfo']),
+		},
+		components:{FrImage},
+		data() {
+			return {
+				list: [],
+				tabFix: this.CustomBar + 'px',
+				isTabFix: {
+					top: 'auto'
+				},
+				tabIndex:1,
+				isPlay: true,
+				//图片轮播
+				checkImg: false,
+				indicatorDots: false,
+				vertical: false,
+				autoplay: false,
+				circular: true,
+				interval: 3000,
+				duration: 100,
+				
+				//视频直播
+				current: 0,
+				vIndicatorDots: true,
+				vAutoplay: true,
+				vInterval: 2000,
+				vDuration: 500,
+				msg:"",
+				swiper:[
+					"../../static/video-img.jpg",
+					"../../static/video-img.jpg",
+					"../../static/video-img.jpg",
+					"../../static/video-img.jpg",
+				],
+				seeNum:0,
+				likeNum:0,
+				is_like:false,
+				id:0,
+				reportId:0,
+				content:{
+					status:0,
+					liveUrl:"",
+					introduce:"",
+					anchor:{
+						headerImg:"",
+						name:"",
+					},
+					report:{
+						commentList:[],
+						childrenList:[],
+						childrenListNum:0,
+						commentListNum:0,
+						title:"",
+						content:"",
+						replayVideoUrl:"",
+						liveTime: '',
+						publishTime: '',
+						type: '',
+						isShowLiveTime: 2
+					},
+					liveImgUrl:"",
+					type:2
+				},
+				baseUrl: uni.$url.baseUrl,
+				
+				token:this.$store.state.m_user.token || '',
+				// 确保websocket是打开状态
+				is_open_socket: false,
+				toPageClose:true,
+				interval: null,
+				socketNum: 0,
+				isLoginModalShow: false,
+				video: null, //视频对象
+			}
+		},
+		async onShow() {
+			
+			this.onCheckLogin();
+			
+			clearTimeout(this.interval);
+			this.interval = null;
+			// 进入这个页面的时候创建websocket连接【整个页面随时使用】
+			this.connectSocketInit();
+			this.toPageClose=true;
+		},
+		onLoad(option) {
+			this.id=option.id;
+			// this.likeNum=option.likeNum;
+			// this.seeNum=option.seeNum;
+			
+			this.getData();
+		},
+		onUnload() {
+			if(this.interval) {
+				clearTimeout(this.interval);  
+				this.interval = null;  
+			}
+			if(this.is_open_socket) {				
+				this.closeSocket();
+				this.is_open_socket = false;
+			}
+		},
+		filters:{
+			//过滤器 用于格式化时间
+			dateFormat: function(value) {
+				
+				let result = null;
+				
+				if(value) {
+					
+					let arr = value.split(" ");
+					
+					result = arr[1];
+					
+				}
+				// 返回
+				return result;
+			},
+		},
+		// 发送给朋友
+		onShareAppMessage(res) {
+			
+			this.$wxShare.mpShare['title'] = this.content.report.title || '龙眼直播';
+			
+			return this.$wxShare.mpShare
+			
+		},
+		//分享到朋友圈
+		onShareTimeline(res) {
+			
+			this.$wxShare.mpShare['title'] = this.content.report.title || '龙眼直播';
+			
+			return this.$wxShare.mpShare
+		},
+		methods: {
+			...mapMutations('m_user', ['updateUserInfo', 'updateToken']),
+			async onCheckLogin(e) {
+				
+				let code = await this.getAuthToken();
+				
+				if(code !== 401) return;
+			
+				// if(this.token) return;
+				this.updateUserInfo({})
+				this.updateToken('')
+				
+				this.isLoginModalShow = true;
+				// this.$emit("openModal");
+				
+			},
+			async getAuthToken() {
+				let token = this.$store.state.m_user.token;
+				if (!token || token == '') {					
+					
+					this.isLoginModalShow = true;
+					
+					return 0;
+				} else {
+					
+					const res = await uni.$http.get(uni.$url.authToken);
+					
+					return res.data.code;
+					
+				}
+				
+			},
+			//点赞
+			async setLike(){
+				const res = await uni.$http.post(uni.$url.thumbTrue,{roomId:this.id, status: this.content.status});
+				
+				if (res.data.code !== 0) return uni.$showMsg(res.data.msg);
+				
+				this.likeNum = res.data.data;
+				// this.is_like=true;
+				
+				// uni.showToast({
+				// 	title: '点赞成功',
+				// 	icon: 'success'
+				// })
+			},
+			async cancelLike(){
+				const res = await uni.$http.post(uni.$url.thumbFalse,{roomId:this.id});
+				
+				if (res.data.code !== 0) return uni.$showMsg(res.data.msg);
+				
+				this.likeNum--;
+				this.is_like=false;
+			},
+			async getData(){
+				// 发起请求
+				const res = await uni.$http.get(uni.$url.getLiveRoomById,{roomId:this.id});
+							
+				if (res.data.code !== 0) return uni.$showMsg(res.data.msg);
+				
+				this.likeNum = res.data.data.likeNum;
+				this.seeNum = res.data.data.comeNum;
+				
+				this.content.introduce = res.data.data.introduce;
+				this.content.anchor.headerImg = res.data.data.anchor.headerImg !== null ? this.baseUrl + res.data.data.anchor.headerImg : '../../static/img-null.jpg';;
+				this.content.anchor.name = res.data.data.anchor.name;
+				
+				res.data.data.report.childrenList.forEach((item,index)=> {
+					item.videoImgUrl = item.videoImgUrl !== null ? this.baseUrl + item.videoImgUrl : '../../static/img-null.jpg';
+				})
+
+				this.content.report.childrenList = res.data.data.report.childrenList;
+				this.content.report.childrenListNum = res.data.data.report.childrenList.length;
+				this.swiper = res.data.data.report.imgList;
+				this.content.report.title = res.data.data.report.title;
+				this.content.report.content = res.data.data.report.content;
+				
+				this.content.report.type = res.data.data.report.type;
+				
+				this.content.status = res.data.data.status;
+				
+				if(this.content.report.type == 1) {
+					//直播
+					if(this.content.status==1){
+						//正片
+						this.content.liveUrl = res.data.data.liveUrl;
+					}else if(this.content.status==2){
+						//回放
+						this.content.liveUrl = res.data.data.report.replayNetUrl || this.baseUrl+res.data.data.report.replayVideoUrl;
+					}else if(this.content.status==3){
+						//预热
+						this.content.liveUrl = res.data.data.report.preheatNetUrl || this.baseUrl+res.data.data.report.preheatVideoUrl;
+					}
+				} else {
+					//图集或视频
+					this.content.liveUrl = res.data.data.report.videoNetUrl || this.baseUrl+res.data.data.report.videoUrl;
+					
+				}
+				
+				this.content.liveImgUrl = res.data.data.liveImgUrl !== null ? this.baseUrl + res.data.data.liveImgUrl : '../../static/img-null.jpg';
+				
+				this.content.type = res.data.data.report.type;
+				this.content.report.commentList = res.data.data.report.commentList;
+				this.content.report.commentListNum = res.data.data.report.commentList.length;
+				this.reportId = res.data.data.reportId;
+				this.is_like = res.data.data.isLike;
+				this.virtualLookNum = res.data.data.virtualLookNum;
+				
+				this.content.report.isShowLiveTime = res.data.data.report.isShowLiveTime;
+				this.content.report.liveTime = res.data.data.report.liveTime;
+				this.content.report.publishTime = res.data.data.report.publishTime;
+				
+			},
+			videoErrorCallback(e) {
+				console.log(e);
+			},
+			tabBtn(e) {
+				this.tabIndex = e.currentTarget.dataset.idx;
+			},
+			async sendMsg(){
+				
+				if(!this.msg || this.msg == '') return uni.$showMsg('评论不能为空');
+				
+				// 发起请求
+				const res = await uni.$http.post(uni.$url.saveComment,{reportId:this.reportId,message:this.msg});
+							
+				if (res.data.code !== 0) return uni.$showMsg(res.data.msg);
+				
+				this.msg = '';
+				
+				uni.showToast({
+					title: '提交审核成功',
+					duration: 2000,
+					icon: 'success'
+				})
+			},
+			// 播放
+			play(id) {
+				if(id =="myVideo"){
+					this.video=uni.createVideoContext(id, this);
+					this.video.play()
+					this.isPlay = true
+				}
+			},
+			// 暂停
+			pause(id) {
+				if(id =="myVideo"){
+					this.video=uni.createVideoContext(id, this);
+					this.video.pause()
+					this.isPlay = false
+				}
+			},
+			// 点击视频事件
+			handleClicked(e) {
+				let id = e.target.id;
+				if(id == ""){
+					id = "myVideo";
+				}
+				if(timer){
+					clearTimeout(timer)
+				}
+				this.clickNum++
+				timer = setTimeout(() => {
+					if(this.clickNum >= 2){
+					}else{
+						if(this.isPlay){
+							this.pause(id)
+						}else{
+							this.play(id)
+						}
+					}
+					this.clickNum = 0
+				}, 300)
+			},
+			getImgIndex(index,photos){
+				
+				//准备一个装图片路径的  数组imgs
+				let imgs = photos.map( item =>{
+				//只返回图片路径
+					return this.baseUrl + item.url  
+				})
+				// console.log(imgs);
+				//调用预览图片的方法
+				uni.previewImage({
+					urls:imgs,
+					current:index
+				})
+			},
+			
+			// 进入这个页面的时候创建websocket连接【整个页面随时使用】
+			connectSocketInit() {
+				let that = this;
+				// 创建一个this.socketTask对象【发送、接收、关闭socket都由这个对象操作】
+				this.socketTask = uni.connectSocket({
+					// url: "ws://adv.winzkj.com/imserver/"+that.token+"/"+that.id,
+					url: "ws://adv.winzkj.com/imserver/"+that.id,
+					success(data) {
+						console.log("websocket连接成功");
+					},
+				});
+		 
+				// 消息的发送和接收必须在正常连接打开中,才能发送或接收【否则会失败】
+				this.socketTask.onOpen((res) => {
+					console.log("WebSocket连接正常打开中...！");
+					this.is_open_socket = true;
+					
+					
+					// 注：只有连接正常打开中 ，才能正常收到消息
+					this.socketTask.onMessage((res) => {
+						console.log("websocket正常打开中");
+						
+						//重连成功后清除定时任务
+						clearTimeout(this.reconnectTimeOutObj);
+						this.socketNum=0;
+						
+						if(res.data !== "连接成功"){
+							
+							let resData = JSON.parse(res.data)
+							
+							
+							if(resData.sendType == 6) {
+								
+								this.seeNum = resData.data;
+								
+							}
+							
+							//开播了 刷新页面
+							if(resData.sendType == 7) {
+								
+								this.pageReLoad(1);
+								
+							}
+							
+							
+							//下播了 刷新页面
+							if(resData.sendType == 8) {
+								
+								this.pageReLoad(2);
+								
+							}
+							
+						}
+					});
+				})
+				// 这里仅是事件监听【如果socket关闭了会执行】
+				this.socketTask.onClose((res) => {
+					
+					if(this.is_open_socket==true){
+						clearTimeout(this.interval);
+						this.interval = null;
+						this.reconnect();
+						return;
+					}
+				
+					
+					this.toIndex();
+					console.log("已经被关闭了")
+					
+				})
+			},
+			// 关闭websocket【离开这个页面的时候执行关闭】
+			closeSocket() {
+				let that = this;
+				this.socketTask.close({
+					success(res) {
+						
+						clearTimeout(that.interval);
+						that.interval = null;
+						that.toPageClose=false;
+						console.log("关闭成功", res)
+					},
+					fail(err) {
+						console.log("关闭失败", err)
+					}
+				})
+			},
+			// reset和start方法主要用来控制心跳的定时。
+			reset(){
+				// 清除定时器重新发送一个心跳信息
+				clearTimeout(this.timeoutRestartObj);
+		　　　　 this.start();
+			},
+			start(){
+				this.timeoutRestartObj = setTimeout(() => {
+					//这里发送一个心跳，后端收到后，返回一个心跳消息，
+					//onmessage拿到返回的心跳就说明连接正常
+					let query = {
+						contentText:"Hi"
+					}
+					this.socketTask.send({
+						data: JSON.stringify(query),
+						async success() {
+							console.log("消息发送成功");
+						},
+					});
+				}, this.timeout)
+			},
+			// 重连
+			reconnect() {
+				// 防止多个方法调用，多处重连
+				if (this.lockReconnect) {
+					return;
+				};
+				
+				if (this.toPageClose == false) {
+					return;
+				};
+				
+				//重连3次后回到首页
+				if(this.socketNum==3){
+					this.toIndex();
+					return;
+				}
+				this.lockReconnect = true;
+				
+				console.log('准备重连');
+				
+				this.socketNum = ++this.socketNum;
+				//没连接上会一直重连，设置延迟避免请求过多
+				this.reconnectTimeOutObj = setTimeout(()=>{
+					// 重新连接
+					this.connectSocketInit();
+					this.lockReconnect = false;
+				}, 4000);
+			},
+			toIndex(){
+				uni.navigateBack({
+					delta: 1
+				});
+			},
+			async pageReLoad(type) {
+				
+				this.pause("myVideo");
+				
+				// 询问用户是否退出登录
+				const [err, succ] = await uni.showModal({
+					title: type == 1 ? '主播下播了' : '主播开播了',
+					content: '请刷新页面？',
+					showCancel: false
+				}).catch(err => err)
+				
+				if (err || !succ || !succ.confirm) return;
+
+				this.getData();
+				
+				this.play("myVideo");
+			}
+		}
+	}
+</script>
+
+<style lang="scss">
+	
+	.nav-fixed {
+		position: fixed;
+		width: 100%;
+		z-index: 1000;
+	}
+	video{
+		height: 422rpx;
+	}
+	.isfixed {
+		background: #FF2222;
+	}
+	.vd-cover{
+		display: flex;
+		position: absolute;
+		top: 130rpx;
+		left: 305rpx;
+		text-align: center;
+		height: 140rpx;
+		width: 140rpx;
+		image{
+			height: 140rpx;
+			width: 140rpx;
+		}
+	}
+	.comment-sub{
+		width: 100%;
+		position: fixed;
+		bottom: 0;
+		border-top:1px #CCCCCC solid;
+		padding: 20rpx 30rpx;
+		background-color: #fff;
+		image{
+			width: 68rpx;
+			height: 48rpx;
+		}
+		.comment-sub-content{
+			border: 1px #FF2222 solid;
+			border-radius: 40rpx;
+			height: 80rpx;
+			line-height: 80rpx;
+			width: 100%;
+			justify-content:space-between;
+			flex-direction:unset;
+			background-color: #F4F4F4;
+			.comment-sub-inp{
+				margin-left:21rpx;
+				width: 480rpx;
+				input{
+					margin-top: 16rpx;
+				}
+			}
+			.comment-sub-btn{
+				background: #FF2222;
+				border-radius: 40rpx;
+				width: 120rpx;
+				padding-top: 14rpx;
+				image{
+					margin: 0 auto;
+				}
+			}
+		}
+	}
+	.content-bottom{
+		background: #ffffff;
+		.tab {
+			box-sizing: border-box;
+			color: #000;
+			display: flex;
+			flex-direction: row;
+			text-align: center;
+			color: #666666;
+			.tab-item {
+				font-size: 28rpx;
+				padding: 20rpx 38rpx;
+				width: 50%;
+				background: #EEEEEE;
+			}
+			.tab-item-active {
+				color: #000000;
+				background: #ffffff;
+			}
+		}
+		.list{
+			margin-bottom: 120rpx;
+			.comment-top{
+				padding: 0 20px;
+				height: 44px;
+				display: flex;
+				flex-direction: row;
+				text-align: left;
+				.comment-top-item {
+					width: 50%;
+					.avatar {
+						position:absolute;
+						top:10px;
+						width: 48rpx;
+						height: 48rpx;
+					}
+					image{
+						width: 100%;
+						height: 100%;
+						border-radius: 50%;
+					}
+					text{
+						
+					}
+					.comment-top-from{
+						font-size: 9px;
+						color: #888888;
+						text{
+							color: #000000;
+							margin-left: 5px;
+						}
+					}
+				}
+				.right{
+					text-align: right;
+					color: #888888;
+					font-size: 12px;
+					padding-top: 17px;
+				}
+			}
+			.comment-content{
+				margin: 5px 28px 10px 53px;
+				padding-bottom: 10px;
+				border-bottom:1px #DDDDDD solid;
+				color: #000000;
+				text{
+					margin-bottom: 10px;
+				}
+				.image-layout-wrap {
+					// display: inline-block;;
+					// overflow:hidden;
+					.image-wrap {
+						
+					}
+					.image-layout-one {
+						
+					}
+					.image-layout-two {
+						
+					}
+					.image-layout-three {
+						
+					}
+					.image-layout-four {
+						display: flex;
+						flex-wrap: wrap;
+						flex-direction: row;
+						width: calc(100% + 30rpx);
+						position: relative;
+						left: -15rpx;
+						.cover-wrap {
+							display: inline-block;
+							width: 46%;
+							height:0;
+							padding-top:45%;
+							margin: 2%;
+							overflow: hidden;
+							.swiper {
+								position: absolute;
+								left: 0;
+								top: 0;
+								display: inline-block;
+								width: 100%;
+								height: 100%;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	.v-list{
+		background-color: #f6f6f6;
+		.v-list-content{
+			width: 100%;
+			display: flex;
+			flex-direction:column;
+			-webkit-flex-direction:column;
+			margin-bottom: 10px;
+			.v-list-img{
+				height: 211px;
+				.v-list-watch{
+					z-index:2;
+					position: absolute;
+					top: 15px;
+					left: 15px;
+					height: 28px;
+					line-height: 28px;
+					padding: 0 15px 0 30px;
+					border-radius: 15px;
+					background: rgba($color: #000000, $alpha: 0.6);
+					color: #FFFFFF;
+					.v-list-icon{
+						position: absolute;
+						width: 25px;
+						height: 25px;
+						background: #FF1818;
+						border-radius: 50%;
+						text-align: center;
+						left: 0;
+						top: 2px;
+						image{
+							top: 8px;
+							left: 7px;
+							width: 10px;
+							height: 10px;
+						}
+					}
+				}
+				.v-list-time {
+					position: absolute;
+					top: 15px;
+					right: 15px;
+					display: inline-block;
+					height: 28px;
+					line-height: 28px;
+					padding: 0 15px;
+					// font-size: 18px;
+					background: rgba($color: #000000, $alpha: 0.6);
+					border-radius: 18px;
+					color: #FFA8A8;
+					z-index: 2;
+				}
+				.v-list-bg{
+					position: relative;
+					z-index:1;
+					height: 211px;
+					width: 100%;
+					image{
+						height: 211px;
+						width: 100%;
+					}
+					.screen-swiper {
+						
+						.swiper {
+							height: 100%;
+						}
+					}
+					// position: absolute;
+				}
+			}
+			.v-list-title{
+				font-size: 17px;
+				padding: 15px 15px 0 15px;
+				background-color: #FFFFFF;
+				margin-top: 39rpx;
+				color: #000;
+			}
+			.v-list-bottom-content{
+				background: #FFFFFF;
+				.v-list-bottom{
+					height: 44px;
+					line-height: 44px;
+					margin: 0 10px;
+					border-bottom:1px #DDDDDD solid;
+					image{
+						width: 24px;
+						height: 24px;
+						position:absolute;
+						top:10px;
+					}
+					.v-list-left{
+						position: absolute;
+						left: 0;
+						width: 50%;
+						padding-left: 10px;
+						image{
+							border-radius: 50%;
+						}
+					}
+					.v-list-right{
+						padding: 0 10px 0 18%;
+						flex: 5;
+						position: absolute;
+						right: 0;
+						width: 50%;
+					}
+					text{
+						margin-left: 28px;
+					}
+				}
+			}
+			
+		}
+		
+	}
+</style>

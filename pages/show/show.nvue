@@ -1,0 +1,274 @@
+<template>
+	<z-paging-swiper class="wrapper">
+		<!-- <view class="wrapper"> -->
+		<!-- 		<view class="nav-fixed isfixed">
+		</view> -->
+		<cu-custom class="nav-wrap" bgColor="text-white bg-color" :isBack="true">
+			<block slot="backText"><text class="logo-tips">展示</text></block>
+		</cu-custom>
+
+		<view class="content" :style="{'top': tabFix}">
+
+			<view class="swiper-wrap" v-if="bannerList.length">
+				<swiper class="swiper-item-wrap" :indicator-dots="true" :autoplay="true" :interval="2000"
+					:duration="500" :style="{'height': bannerHeight + 'rpx'}">
+					<swiper-item v-for="(item,index) in bannerList" :key="index">
+						<view class="swiper-item">
+							<image :src="item.imgUrl" mode=""></image>
+						</view>
+					</swiper-item>
+				</swiper>
+			</view>
+
+			<!-- 使用z-paging-swiper为根节点可以免计算高度 -->
+			<!-- <z-paging-swiper :style="{'height': swiperContentHeight +'px'}"> -->
+			<!-- <z-paging-swiper> -->
+			<!-- 此处代码复制了uView中tabsSwiper全屏选项卡的代码 -->
+			<!-- 需要固定在顶部不滚动的view放在slot="top"的view中 -->
+			<u-tabs-swiper class="tabs-wrap" ref="uTabs" :list="tabMenu" :current="current" @change="tabsChange"
+				:is-scroll="false" swiperWidth="750" :height="100" :style="{'top':tabFix}" :activeColor="'#000000'"
+				:barStyle="{'background': '#FF5D48'}"></u-tabs-swiper>
+			<!-- swiper必须设置height:100%，因为swiper有默认的高度，只有设置高度100%才可以铺满页面  -->
+			<swiper class="swiper" duration="100" :current="swiperCurrent" @transition="transition" @animationfinish="animationfinish"
+				:style="{'height': swiperContentHeight +'px','padding-bottom': contentPaddingBottom + 'px'}">
+				<swiper-item class="swiper-item" v-for="(item, index) in tabMenu" :key="index">
+					<swiper-list-item class="swiper-list-item" :tabIndex="index" :currentIndex="swiperCurrent"
+						:catId="item.id"></swiper-list-item>
+				</swiper-item>
+			</swiper>
+			<!-- </z-paging-swiper> -->
+
+		</view>
+
+		<tabbar :current="2"></tabbar>
+	</z-paging-swiper>
+</template>
+
+<script>
+	import tabbar from '@/components/tabbar/tabbar'
+	export default {
+		components: {
+			tabbar
+		},
+		data() {
+			return {
+				tabMenu: [],
+				// 因为内部的滑动机制限制，请将tabs组件和swiper组件的current用不同变量赋值
+				current: 0, // tabs组件的current值，表示当前活动的tab选项
+				swiperCurrent: 0, // swiper组件的current值，表示当前那个swiper-item是活动的
+
+				tabFix: this.CustomBar + 'px', //导航栏高度
+				contentHeight: 0, //contentHeight高度
+				swiperContentHeight: 0, //swiperContentHeight 高度
+				contentPaddingBottom: 0, //contentPaddingBottom 高度
+
+				bannerHeight: 160, //banner高度
+				bannerList: [], //banner列表
+			}
+		},
+		onLoad() {
+
+			//获取banner
+			this.getBannerImg();
+
+			//初始化元素高度
+			this.getSwiperContentHeight();
+
+			//获取资讯分类列表
+			this.getInfoCategoryList();
+
+			//根据资讯分类的id获取资讯列表
+			// this.getInfoList();
+
+
+		},
+		onShow() {
+			uni.hideTabBar({
+				animation: false
+			})
+		},
+		methods: {
+			async getBannerImg() {
+
+				// 发起请求
+				const res = await uni.$http.get(uni.$url.getBannerImg, {
+					label: 'news_banner'
+				});
+
+				if (res.data.code !== 0) return uni.$showMsg(res.data.msg);
+
+				let data = res.data.data[0];
+
+				this.bannerHeight = data.height;
+				
+				if(!data.imgDto) data.imgDto = [];
+
+				data.imgDto.forEach((item, index) => {
+					item.imgUrl = item.imgUrl !== null ? uni.$url.baseUrl + item.imgUrl :
+						'../../static/img-null.jpg';
+				});
+
+				this.bannerList = data.imgDto;
+
+			},
+			// tabs通知swiper切换
+			tabsChange(index) {
+				this.swiperCurrent = index;
+			},
+			// swiper-item左右移动，通知tabs的滑块跟随移动
+			transition(e) {
+				let dx = e.detail.dx;
+				this.$refs.uTabs.setDx(dx);
+			},
+			// 由于swiper的内部机制问题，快速切换swiper不会触发dx的连续变化，需要在结束时重置状态
+			// swiper滑动结束，分别设置tabs和swiper的状态
+			animationfinish(e) {
+				let current = e.detail.current;
+				this.$refs.uTabs.setFinishCurrent(current);
+				this.swiperCurrent = current;
+				this.current = current;
+			},
+			getSwiperContentHeight() {
+				let windowHeight = 0;
+				let swiperTopHeight = 0;
+				let tabsHeight = 0;
+				let swiperHeight = 0;
+
+				uni.getSystemInfo({
+					success: function(res) {
+						windowHeight = res.windowHeight;
+					}
+				});
+				const query = uni.createSelectorQuery().in(this);
+
+				query.select('.tabs-wrap').boundingClientRect(data => {
+
+					tabsHeight = data.height;
+
+				}).exec();
+
+				query.select('.nav-wrap').boundingClientRect(data => {
+					swiperTopHeight = data.height;
+
+					this.tabbarHeight = uni.getStorageSync('tabbarHeight');
+
+					this.contentPaddingBottom = this.tabbarHeight;
+
+					this.swiperContentHeight = windowHeight - swiperTopHeight + this.StatusBar;
+
+				}).exec();
+			},
+			async getInfoCategoryList() {
+				const res = await uni.$http.get(uni.$url.getInfoCategoryList);
+
+				if (res.data.code !== 0) return uni.$showMsg(res.data.msg);
+
+				let data = res.data.data;
+
+				this.tabMenu = this.minSort(data);
+			},
+			// 排序从小到大排序
+			minSort(arr) {
+				var min
+				for (var i = 0; i < arr.length; i++) {
+					for (var j = i; j < arr.length; j++) {
+						if (arr[i].sort > arr[j].sort) {
+							min = arr[j]
+							arr[j] = arr[i]
+							arr[i] = min
+						}
+					}
+				}
+				return arr
+			}
+		}
+	}
+</script>
+
+<style lang="scss">
+	page {
+		position: relative;
+		width: 100%;
+		height: 100%;
+	}
+
+	.wrapper {
+		position: fixed;
+		// position: absolute;
+		top: 0;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		height: 100%;
+		overflow: auto;
+		// overflow-y: scroll;
+		// -webkit-overflow-scrolling: touch
+	}
+
+	.cuIcon-back {
+		display: none;
+	}
+
+	.bg-color {
+		background: #FF2222;
+	}
+
+	.content {
+		position: fixed;
+		// position: sticky;
+		width: 100%;
+		height: 100%;
+		// top: var(--window-top);
+		// margin-top: 20rpx;
+	}
+
+	.swiper {
+		height: 100%;
+	}
+
+	.swiper-wrap {
+		.swiper-item-wrap {
+			.swiper-item {
+				height: 100%;
+			}
+
+			/* 默认指示点的样式 */
+			.wx-swiper-dot {
+				width: 30rpx;
+				height: 8rpx;
+				background: white;
+				border-radius: 4rpx;
+			}
+
+			/* 选中指示点的样式 */
+			.wx-swiper-dot.wx-swiper-dot-active {
+				width: 30rpx;
+				height: 8rpx;
+				background: #7F0A0A;
+				border-radius: 4rpx;
+			}
+
+			.wx-swiper-dots {
+				position: absolute;
+				left: 50px !important;
+			}
+
+			.wx-swiper-dots.wx-swiper-dots-horizontal {
+				margin-bottom: -5rpx;
+			}
+		}
+	}
+
+	.u-tabs-scorll-flex {
+		flex-direction: row;
+	}
+
+	.swiper-list-item {
+		height: 100%;
+	}
+
+	.tabs-wrap {
+		// position: sticky;
+		z-index: 100;
+	}
+</style>
